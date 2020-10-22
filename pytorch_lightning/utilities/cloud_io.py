@@ -42,11 +42,15 @@ def get_filesystem(path: pathlike):
 
 
 def move_to_cpu(item):
-    for key, value in item.items():
-        if isinstance(value, dict):
-            move_to_cpu(value)
-        elif isinstance(value, torch.Tensor) and 'xla' in str(value.device):
-            item[key] = value.cpu()
+    if isinstance(item, dict):
+        new_dict = item.copy()
+        for key, val in item.items():
+            new_dict[key] = move_to_cpu(val)
+        return new_dict
+    if isinstance(item, list):
+        return list(map(move_to_cpu, item))
+    if isinstance(item, torch.Tensor):
+        return item.cpu()
 
 
 def atomic_save(checkpoint, filepath: str):
@@ -60,7 +64,7 @@ def atomic_save(checkpoint, filepath: str):
             This points to the file that the checkpoint will be stored in.
     """
 
-    move_to_cpu(checkpoint)
+    checkpoint = move_to_cpu(checkpoint)
 
     bytesbuffer = io.BytesIO()
     # Can't use the new zipfile serialization for 1.6.0 because there's a bug in
